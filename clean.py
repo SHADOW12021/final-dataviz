@@ -24,9 +24,9 @@ df_cleaned = df_cleaned[1:].reset_index(drop=True)
 df_cleaned = df_cleaned.dropna()
 
 # Save the cleaned data to a new file
-df_cleaned.to_csv("1.csv", index=False)
+df_cleaned.to_csv("General.csv", index=False)
 
-print("Data cleaning complete. Cleaned file saved as '1.csv'.")
+print("Data cleaning complete. Cleaned file saved as 'General.csv'.")
 
 #330.20
 
@@ -43,14 +43,14 @@ df_cleaned = df.iloc[4:].reset_index(drop=True)
 
 # Rename columns based on the first valid row
 df_cleaned.columns = [
-    "State", "Public 4-year In-state 21-22 All", "Public 4-year In-state 21-22 Tuition", 
-    "Public 4-year In-state 22-23 All", "Public 4-year In-state 22-23 Tuition", 
-    "Public 4-year In-state 22-23 Room", "Public 4-year In-state 22-23 Board", 
-    "Public 4-year Out-state 22-23 All", "Private 4-year 21-22 All", 
-    "Private 4-year 21-22 Tuition", "Private 4-year 22-23 All", 
-    "Private 4-year 22-23 Tuition", "Private 4-year 22-23 Room", 
-    "Private 4-year 22-23 Board", "Public 2-year In-state 21-22 Tuition", 
-    "Public 2-year In-state 22-23 Tuition", "Public 2-year Out-state 22-23 Tuition"
+    "State", "P4I12 All", "P4I12 Tuition", 
+    "P4I23 All", "P4I23 Tuition", 
+    "P4I23 Room", "P4I23 Board", 
+    "P4O23 All", "Pr412 All", 
+    "Pr412 Tuition", "Pr423 All", 
+    "Pr423 Tuition", "Pr423 Room", 
+    "Pr423 Board", "P2I12 Tuition", 
+    "P2I23 Tuition", "P2O23 Tuition"
 ]
 df_cleaned = df_cleaned[1:].reset_index(drop=True)
 
@@ -58,9 +58,9 @@ df_cleaned = df_cleaned[1:].reset_index(drop=True)
 df_cleaned = df_cleaned.dropna()
 
 # Save the cleaned data to a new file
-df_cleaned.to_csv("2.csv", index=False)
+df_cleaned.to_csv("State.csv", index=False)
 
-print("Data cleaning complete. Cleaned file saved as '2.csv'.")
+print("Data cleaning complete. Cleaned file saved as 'State.csv'.")
 
 #330.30
 
@@ -87,15 +87,15 @@ df_cleaned.insert(1, "Year", df_cleaned.iloc[:, 0])
 
 # Assign appropriate labels to the first column (Institution)
 institution_labels = {
-    (0, 6): "Public institutions",
-    (6, 13): "Public 4-year",
-    (13, 20): "Public 2-year",
-    (20, 27): "Private non-profit",
-    (27, 34): "Private Nonprofit 4-year",
-    (34, 41): "Private Nonprofit 2-year",
-    (41, 48): "Private for-profit",
-    (48, 55): "Private for-profit 4-year",
-    (55, 62): "Private for-profit 2-year",
+    (2, 7): "Public institutions",
+    (9, 14): "Public 4-year",
+    (16, 21): "Public 2-year",
+    (23, 28): "Private non-profit",
+    (30, 35): "Private Nonprofit 4-year",
+    (37, 42): "Private Nonprofit 2-year",
+    (44, 49): "Private for-profit",
+    (51, 56): "Private for-profit 4-year",
+    (58, 63): "Private for-profit 2-year",
 }
 
 for (start, end), label in institution_labels.items():
@@ -104,10 +104,16 @@ for (start, end), label in institution_labels.items():
 # Rename the first column to "Institution"
 df_cleaned.rename(columns={df_cleaned.columns[0]: "Institution"}, inplace=True)
 
+# Rename other columns
+column_names = ["Institution", "Year", "All 10th", "All 25th", "All 50th", "All 75th", "All 90th", "Tuition 10th", "Tuition 25th", "Tuition 50th", "Tuition 75th", "Tuition 90th"]
+df_cleaned.columns = column_names
+
 # Remove rows with NaN values
 df_cleaned = df_cleaned.dropna()
 
 # Save the cleaned data to a new file
-df_cleaned.to_csv("cleaned_tuition_data_33030.csv", index=False)
+df_cleaned.to_csv("Instuition.csv", index=False)
 
-print("Data cleaning complete. Cleaned file saved as 'cleaned_tuition_data_33030.csv'.")
+print("Data cleaning complete. Cleaned file saved as 'Instuition.csv'.")
+
+#330.40
