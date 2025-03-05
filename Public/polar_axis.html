@@ -113,7 +113,7 @@
     <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
 
     <script>
-        d3.csv("../clean_data/Instuition.csv").then(function(dataset) {
+        d3.csv("/data/instuition").then(function(dataset) {
             dataset.forEach(d => {
                 d.Year = d["Year"].trim();
                 d.Institution = d["Institution"].trim();

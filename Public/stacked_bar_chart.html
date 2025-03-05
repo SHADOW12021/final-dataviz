@@ -92,7 +92,7 @@
                 .attr("transform", `translate(${margin.left},${margin.top})`);
 
     // Load the data
-    d3.csv("../clean_data/General.csv").then(data => {
+    d3.csv("/data/general").then(data => {
         // Convert numeric values for both 2-year and 4-year institutions
         data.forEach(d => {
             d["Tuition 2-year"] = +d["Tuition 2-year"];
