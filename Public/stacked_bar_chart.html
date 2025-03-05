@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stacked Bar Chart - Year vs Institution</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: Poppins, sans-serif; }
+        .bar { stroke: white; stroke-width: 1px; }
+        .axis-label { font-size: 16px; font-weight: bold; }
+        .tooltip {
+            position: absolute;
+            background-color: white;
+            border: 1px solid black;
+            padding: 5px;
+            display: none;
+            font-size: 14px;
+        }
+        /* Legend styles */
+        .legend-rect {
+            stroke: black;
+            stroke-width: 1px;
+        }
+
+        .legend-text {
+            font-size: 14px;
+        }
+
+        .legend-label {
+            font-size: 18px; /* Larger label font size */
+            margin-right: 10px;
+        }
+
+        .legend-select {
+            font-size: 16px; /* Larger dropdown font size */
+            padding: 8px 12px; /* Larger padding */
+            width: 200px; /* Wider dropdown */
+            border-radius: 5px; /* Rounded corners */
+            border: 1px solid #ccc; /* Light border */
+        }
+
+        /* Style for the dropdown filters */
+        .filter-container {
+            margin-bottom: 20px;
+        }
+
+        .filter-container label {
+            font-size: 18px; /* Larger label font size */
+            margin-right: 10px;
+        }
+
+        .filter-container select {
+            font-size: 16px; /* Larger dropdown font size */
+            padding: 8px 12px; /* Larger padding */
+            width: 200px; /* Wider dropdown */
+            border-radius: 5px; /* Rounded corners */
+            border: 1px solid #ccc; /* Light border */
+        }
+    </style>
+</head>
+<body>
+    <h2>Undergraduate Fees (in current dollars) over the Years</h2>
+    <!-- Dropdown filter for institution type -->
+    <label for="institution-filter">Filter by Institution Type:</label>
+    <select id="institution-filter">
+        <option value="All institutions">All institutions</option>
+        <option value="Public institutions">Public institutions</option>
+        <option value="Private institutions">Private institutions</option>
+        <option value="Private non-profit">Private non-profit</option>
+        <option value="Private for-profit">Private for-profit</option>
+    </select>
+    <!-- Dropdown filter for duration of institution -->
+    <label for="duration-filter">Filter by Duration:</label>
+    <select id="duration-filter">
+        <option value="2-year">2-Year Institutions</option>
+        <option value="4-year">4-Year Institutions</option>
+    </select>
+    <svg width="900" height="500"></svg>
+    <div class="tooltip"></div>
+    <script>
+        // Define margins and dimensions
+    const margin = { top: 40, right: 30, bottom: 100, left: 80 },
+                width = 1500 - margin.left - margin.right,
+                height = 600 - margin.top - margin.bottom;
+
+
+    const svg = d3.select("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Load the data
+    d3.csv("../clean_data/General.csv").then(data => {
+        // Convert numeric values for both 2-year and 4-year institutions
+        data.forEach(d => {
+            d["Tuition 2-year"] = +d["Tuition 2-year"];
+            d["Dorm 2-year"] = +d["Dorm 2-year"];
+            d["Board 2-year"] = +d["Board 2-year"];
+            d["Tuition 4-year"] = +d["Tuition 4-year"];
+            d["Dorm 4-year"] = +d["Dorm 4-year"];
+            d["Board 4-year"] = +d["Board 4-year"];
+        });
+
+        // Append axis groups before calling updateChart
+        svg.append("g").attr("class", "x-axis")
+        .attr("transform", `translate(0,${height})`);
+        svg.append("g").attr("class", "y-axis");
+
+        // Create a color scale
+        const color = d3.scaleOrdinal()
+                        .domain(["Tuition", "Dorm", "Board"])
+                        .range(["#1f77b4", "#ff7f0e", "#2ca02c"]); // Blue, Orange, Green
+
+        // Function to update the chart based on the selected filters
+        function updateChart() {
+            const institutionType = d3.select("#institution-filter").property("value");
+            const durationType = d3.select("#duration-filter").property("value");
+
+            // Define keys based on the selected duration
+            const keys = durationType === "4-year"
+                ? ["Tuition 4-year", "Dorm 4-year", "Board 4-year"]
+                : ["Tuition 2-year", "Dorm 2-year", "Board 2-year"];
+
+            // Filter the dataset based on institution type
+            const filteredData = data.filter(d => institutionType === "Instuitions" 
+                ? d["Instuitions"] === "All institutions" 
+                : d["Instuition"] === institutionType
+            );
+
+            // Update x and y scales
+            const x = d3.scaleBand()
+                        .domain(filteredData.map(d => d.Year))
+                        .range([0, width])
+                        .padding(0.3);
+
+            const y = d3.scaleLinear()
+                        .domain([0, d3.max(filteredData, d =>
+                            d[keys[0]] + d[keys[1]] + d[keys[2]]
+                        )])
+                        .nice()
+                        .range([height, 0]);
+
+            // Stack the filtered data
+            const stackedData = d3.stack().keys(keys)(filteredData);
+
+            // Remove existing bars before redrawing
+            svg.selectAll(".bar").remove();
+
+            // Draw bars
+            svg.append("g")
+                .selectAll("g")
+                .data(stackedData)
+                .enter().append("g")
+                .attr("fill", d => color(d.key.split(" ")[0])) // Use the first word (Tuition, Dorm, Board) for color
+                .selectAll("rect")
+                .data(d => d)
+                .enter().append("rect")
+                .attr("x", d => x(d.data.Year))
+                .attr("y", d => y(d[1]))
+                .attr("height", d => y(d[0]) - y(d[1]))
+                .attr("width", x.bandwidth())
+                .attr("class", "bar")
+                .on("mouseover", function (event, d) {
+                    const value = d[1] - d[0];
+                    d3.select(".tooltip")
+                    .style("display", "block")
+                    .html(`Value: $${value.toLocaleString()}`) // Format as dollars
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mouseout", function () {
+                    d3.select(".tooltip").style("display", "none");
+                });
+
+            // Update axes
+            svg.select(".x-axis").call(d3.axisBottom(x))
+            .selectAll("text")
+            .attr("transform", "rotate(-40)")
+            .attr("text-anchor", "end");
+
+            svg.select(".y-axis").call(d3.axisLeft(y));
+
+            const legendLabels = ["Board Fees", "Dorm Fees", "Tuition Fees"];
+            const legendColors = ["#2ca02c", "#ff7f0e", "#1f77b4"]; 
+
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width - 200}, -40)`);
+
+            legendLabels.forEach((label, i) => {
+                legend.append("rect")
+                    .attr("x", 0)
+                    .attr("y", i * 20)
+                    .attr("width", 15)
+                    .attr("height", 15)
+                    .attr("fill", legendColors[i]); // Use fixed colors
+
+                legend.append("text")
+                    .attr("x", 20)
+                    .attr("y", i * 20 + 12)
+                    .text(label) // Fixed text labels
+                    .attr("font-size", "14px");
+            });
+        }
+        // Add event listeners to the dropdowns
+        d3.select("#institution-filter").on("change", updateChart);
+        d3.select("#duration-filter").on("change", updateChart);
+
+        // Add axis labels
+        svg.append("text")
+            .attr("x", width / 2)
+            .attr("y", height + margin.bottom - 30)
+            .attr("text-anchor", "middle")
+            .attr("class", "axis-label")
+            .text("Year");
+
+        svg.append("text")
+            .attr("x", -height / 2)
+            .attr("y", -margin.left + 20)
+            // .attr("y", -margin.left / 2) // Adjusted to prevent clipping
+            .attr("transform", "rotate(-90)")
+            .attr("text-anchor", "middle")
+            .style("dominant-baseline", "middle")
+            .attr("class", "axis-label")
+            .text("Current Dollars");
+
+        // Add legend group
+        svg.append("g").attr("class", "legend");
+
+        // Initial render
+        updateChart();
+        }).catch(error => console.error("Error loading the data:", error));
+    </script>
+</body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3 Polar Chart</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        #controls {
+            display: flex;
+            gap: 20px; 
+            margin-bottom: 20px;
+        }
+        .dropdown {
+            flex: 1;
+        }
+        .dropdown label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .dropdown select {
+            width: 100%;
+            padding: 5px;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 6px;
+            background: #1A2B3C;
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+        .grid-label {
+            font-size: 10px;
+            fill: #8FA9BB;
+            text-anchor: middle;
+        }
+        #visualization-container {
+            display: flex;
+            gap: 10px;
+        }
+        #polar-chart {
+            flex: 0; 
+        }
+        #bar-chart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 540px;
+            overflow: hidden;
+        }
+        #bar-chart svg {
+            background: #f0f0f0; 
+            border-radius: 12px;
+        }
+        #legend {
+            position: flex;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: fit-content;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+        .legend-text {
+            font-size: 14px;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="dropdown">
+            <label for="group-select">Group:</label>
+            <select id="group-select">
+                <option value="">Select a group</option>
+            </select>
+        </div>
+
+        <div class="dropdown">
+            <label for="category-select">Category:</label>
+            <select id="category-select" disabled>
+                <option value="">Select a category</option>
+            </select>
+        </div>
+
+        <div class="dropdown">
+            <label for="percentile-select">Percentile:</label>
+            <select id="percentile-select" disabled>
+                <option value="">Select a percentile</option>
+            </select>
+        </div>
+    </div>
+    <div id="visualization-container">
+        <div id="polar-chart"></div>
+        <div>
+            <div id="bar-chart"></div>
+            <div id="legend"></div>
+        </div>
+    </div>
+    <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
+
+    <script>
+        d3.csv("../clean_data/Instuition.csv").then(function(dataset) {
+            dataset.forEach(d => {
+                d.Year = d["Year"].trim();
+                d.Institution = d["Institution"].trim();
+            });
+
+            const groups = ["Current dollars", "Constant 2022-23 dollars"];
+            const categories = {
+                "Current dollars": {
+                    "Tuition, fees, room, and board": ["All 10th", "All 25th", "All 50th", "All 75th", "All 90th"],
+                    "Tuition and required fees": ["Tuition 10th", "Tuition 25th", "Tuition 50th", "Tuition 75th", "Tuition 90th"]
+                },
+                "Constant 2022-23 dollars": {
+                    "Tuition and required fees": ["Tuition 23 10th", "Tuition 23 25th", "Tuition 23 50th", "Tuition 23 75th", "Tuition 23 90th"]
+                }
+            };
+
+            const institutions = [...new Set(dataset.map(d => d.Institution))];
+            const years = [...new Set(dataset.map(d => d.Year))].sort();
+            const colors = ['#BB9CE8', '#77BAD9', '#DAA550', '#E87A90', '#6BBF8A', '#EE5A5A'];
+
+            const options = {
+                width: 800,
+                height: 800,
+                margin: 50,
+                levels: 5,
+                background: "#0A1B2F",
+                axisColor: "#8FA9BB",
+                gridColor: "#B9CCD7"
+            };
+
+            const groupSelect = d3.select("#group-select");
+            const categorySelect = d3.select("#category-select");
+            const percentileSelect = d3.select("#percentile-select");
+
+            //Dropdown
+            groupSelect.selectAll("option:not(:first-child)")
+                .data(groups).enter().append("option")
+                .text(d => d);
+
+            function updateCategoryOptions() {
+                const selectedGroup = groupSelect.node().value;
+                
+                if (selectedGroup) {
+                    categorySelect.attr("disabled", null);
+                    categorySelect.html("<option value=''>Select a category</option>");
+                    
+                    const categoryOptions = Object.keys(categories[selectedGroup]);
+                    categorySelect.selectAll("option:not(:first-child)")
+                        .data(categoryOptions).enter().append("option")
+                        .text(d => d);
+
+                    if (selectedGroup === "Constant 2022-23 dollars") {
+                        categorySelect.node().value = "Tuition and required fees";
+                        updatePercentileOptions(); 
+                    }
+                } else {
+                    categorySelect.html("<option value=''>Select a category</option>").attr("disabled", true);
+                    percentileSelect.html("<option value=''>Select a percentile</option>").attr("disabled", true);
+                }
+            }
+
+            function updatePercentileOptions() {
+                const selectedGroup = groupSelect.node().value;
+                const selectedCategory = categorySelect.node().value;
+
+                if (selectedCategory) {
+                    percentileSelect.attr("disabled", null);
+                    percentileSelect.html("<option value=''>Select a percentile</option>");
+
+                    const percentileOptions = categories[selectedGroup][selectedCategory];
+                    percentileSelect.selectAll("option:not(:first-child)")
+                        .data(percentileOptions).enter().append("option")
+                        .text(d => d);
+                } else {
+                    percentileSelect.html("<option value=''>Select a percentile</option>").attr("disabled", true);
+                }
+            }
+
+            const svg = d3.select("#polar-chart").append("svg")
+                .attr("width", options.width)
+                .attr("height", options.height)
+                .style("background", options.background)
+                .style("border-radius", "12px");
+
+            const radius = Math.min(options.width, options.height) / 2 - options.margin;
+            const content = svg.append("g")
+                .attr("transform", `translate(${options.width/2},${options.height/2})`);
+
+            const angleScale = d3.scaleBand()
+                .domain(institutions)
+                .range([0, 2 * Math.PI]);
+
+            const radiusScale = d3.scaleLinear().range([0, radius]);
+
+            function updateChart() {
+                const selectedPercentile = percentileSelect.node().value;
+                if (!selectedPercentile) return;
+
+                content.selectAll("*").remove();
+                const maxValue = d3.max(dataset, d => +d[selectedPercentile]) || 1;
+                radiusScale.domain([0, maxValue]);
+
+                const gridData = d3.range(1, options.levels + 1);
+                const gridScale = d3.scaleLinear()
+                    .domain([1, options.levels])
+                    .range([0, maxValue]);
+
+                content.selectAll(".grid-circle")
+                    .data(gridData)
+                    .join("circle")
+                    .attr("r", d => d * (radius / options.levels))
+                    .style("fill", "none")
+                    .style("stroke", options.gridColor)
+                    .style("stroke-width", 0.5)
+                    .style("opacity", 0.2);
+
+                //Labels
+                content.selectAll(".grid-label")
+                    .data(gridData)
+                    .join("text")
+                    .attr("class", "grid-label")
+                    .attr("x", 0)
+                    .attr("y", d => -d * (radius / options.levels))
+                    .attr("dy", "0.35em")
+                    .text(d => `$${d3.format(",.0f")(gridScale(d))}`);
+
+                //Axis
+                content.selectAll(".axis-line")
+                    .data(institutions)
+                    .join("line")
+                    .attr("x1", 0).attr("y1", 0)
+                    .attr("x2", (d, i) => radius * Math.cos(angleScale(d) - Math.PI/2))
+                    .attr("y2", (d, i) => radius * Math.sin(angleScale(d) - Math.PI/2))
+                    .style("stroke", options.gridColor)
+                    .style("opacity", 0.2);
+
+                content.selectAll(".axis-label")
+                    .data(institutions)
+                    .join("foreignObject")
+                    .attr("x", (d, i) => (radius + 20) * Math.cos(angleScale(d) - Math.PI/2) - 40)
+                    .attr("y", (d, i) => (radius + 20) * Math.sin(angleScale(d) - Math.PI/2) - 10)
+                    .attr("width", 80)
+                    .attr("height", 20)
+                    .html(d => `
+                        <div style="
+                            color: ${options.axisColor};
+                            font-size: 10px;
+                            text-align: center;
+                            font-family: sans-serif;
+                        ">${d}</div>
+                    `);
+
+                //Polygons
+                const polygonsData = years.map(year => {
+                    const yearData = dataset.filter(d => d.Year === year);
+                    const values = institutions.map(inst => {
+                        const data = yearData.find(d => d.Institution === inst);
+                        return data ? +data[selectedPercentile] : 0;
+                    });
+                    return { year, values, area: d3.sum(values), yearData };
+                });
+
+                polygonsData.sort((a, b) => b.area - a.area); //Have smallest on top
+
+                const lineGenerator = d3.lineRadial()
+                    .angle((d, i) => angleScale(institutions[i]))
+                    .radius(d => radiusScale(d))
+                    .curve(d3.curveLinearClosed);
+
+                polygonsData.forEach((d, i) => {
+                    const color = colors[i % colors.length];
+                    content.append("path")
+                        .datum(d.values)
+                        .attr("d", lineGenerator)
+                        .attr("fill", color)
+                        .attr("fill-opacity", 0.2)
+                        .attr("stroke", color)
+                        .attr("stroke-width", 2)
+                        .on("mouseover", function(event) {
+                            d3.select(this).attr("fill-opacity", 0.6);
+                            const institutionValues = d.yearData.map(data => `${data.Institution}: $${d3.format(",.0f")(data[selectedPercentile])}`).join("<br>");
+                            d3.select("#tooltip")
+                                .style("opacity", 1)
+                                .html(`Year: ${d.year}<br>${institutionValues}`)
+                                .style("left", `${event.pageX + 15}px`)
+                                .style("top", `${event.pageY - 28}px`);
+                            updateBarChart(d.yearData, selectedPercentile, d.year, color);
+                        })
+                        .on("mouseout", function() {
+                            d3.select(this).attr("fill-opacity", 0.2);
+                            d3.select("#tooltip").style("opacity", 0);
+                            d3.select("#bar-chart").html(""); //Clear the bar chart
+                        });
+                });
+                
+                updateLegend(polygonsData);
+            }
+
+            function updateBarChart(yearData, selectedPercentile, year, color) {
+                const barChartSvg = d3.select("#bar-chart").html("").append("svg")
+                    .attr("width", 700) 
+                    .attr("height", 550); 
+
+                const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+                const width = 700 - margin.left - margin.right;
+                const height = 500 - margin.top - margin.bottom;
+
+                const x = d3.scaleBand()
+                    .domain(yearData.map(d => d.Institution))
+                    .range([margin.left, width + margin.left])
+                    .padding(0.1);
+
+                const y = d3.scaleLinear()
+                    .domain([0, d3.max(yearData, d => +d[selectedPercentile])])
+                    .nice()
+                    .range([height + margin.top, margin.top]);
+
+                const xAxis = g => g
+                    .attr("transform", `translate(0,${height + margin.top})`)
+                    .call(d3.axisBottom(x))
+                    .selectAll("text")
+                    .attr("transform", "rotate(-45)")
+                    .style("text-anchor", "end");
+
+                const yAxis = g => g
+                    .attr("transform", `translate(${margin.left},0)`)
+                    .call(d3.axisLeft(y));
+
+                barChartSvg.append("g")
+                    .call(xAxis);
+
+                barChartSvg.append("g")
+                    .call(yAxis);
+
+                barChartSvg.selectAll("rect")
+                    .data(yearData)
+                    .enter().append("rect")
+                    .attr("x", d => x(d.Institution))
+                    .attr("y", d => y(+d[selectedPercentile]))
+                    .attr("width", x.bandwidth())
+                    .attr("height", d => height + margin.top - y(+d[selectedPercentile]))
+                    .attr("fill", color);
+
+
+                barChartSvg.append("text")
+                    .attr("x", width / 2 + margin.left)
+                    .attr("y", margin.top / 2)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", "16px")
+                    .style("font-weight", "bold")
+                    .text(`Year: ${year}`);
+            }
+
+            function updateLegend(polygonsData) {
+                const legend = d3.select("#legend").html("");
+
+                polygonsData.sort((a, b) => a.area - b.area);
+
+                legend.selectAll(".legend-item")
+                    .data(polygonsData)
+                    .enter().append("div")
+                    .attr("class", "legend-item")
+                    .html(d => `
+                        <div class="legend-color" style="background: ${colors[polygonsData.indexOf(d) % colors.length]};"></div>
+                        <div class="legend-text">${d.year}</div>
+                    `);
+            }
+
+            groupSelect.on("change", () => {
+                updateCategoryOptions();
+                updateChart();
+            });
+
+            categorySelect.on("change", () => {
+                updatePercentileOptions();
+                updateChart();
+            });
+
+            percentileSelect.on("change", updateChart);
+        });
+    </script>
+</body>
+</html>

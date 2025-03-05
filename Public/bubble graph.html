@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hierarchical Zoomable Bubble Graph</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        .bubble {
+            fill-opacity: 0.7;
+            stroke: black;
+            stroke-width: 1px;
+        }
+        .bubble:hover {
+            stroke: #000;
+        }
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 6px;
+            font: 12px sans-serif;
+            background: lightsteelblue;
+            border: 0px;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
+    <script>
+        // Specify the chart’s dimensions.
+        const width = 928;
+        const height = width;
+
+        // Create the color scale.
+        const color = d3.scaleLinear()
+            .domain([0, 5])
+            .range(["hsl(152,80%,80%)", "hsl(228,30%,40%)"])
+            .interpolate(d3.interpolateHcl);
+
+        // Load the CSV data.
+        d3.csv("../clean_data/Instuition.csv").then(function(data) {
+            console.log(data);
+
+            // Transform data into a hierarchical structure.
+            const root = {
+                name: "Root",
+                children: [
+                    {
+                        name: "Current dollars",
+                        children: [
+                            {
+                                name: "Tuition, fees, room, and board",
+                                children: []
+                            },
+                            {
+                                name: "Tuition and required fees",
+                                children: []
+                            }
+                        ]
+                    },
+                    {
+                        name: "Constant 2022-23 dollars",
+                        children: []
+                    }
+                ]
+            };
+
+            // Group data by Institution and Year
+            const groups = {
+                "Current dollars": {
+                    "Tuition, fees, room, and board": {},
+                    "Tuition and required fees": {}
+                },
+                "Constant 2022-23 dollars": {}
+            };
+
+            data.forEach(row => {
+                const institution = row["Institution"];
+                const year = row["Year"];
+
+                // Add to "Tuition, fees, room, and board" under "Current dollars"
+                if (!groups["Current dollars"]["Tuition, fees, room, and board"][institution]) {
+                    groups["Current dollars"]["Tuition, fees, room, and board"][institution] = {
+                        name: institution,
+                        children: []
+                    };
+                    root.children[0].children[0].children.push(groups["Current dollars"]["Tuition, fees, room, and board"][institution]);
+                }
+
+                groups["Current dollars"]["Tuition, fees, room, and board"][institution].children.push({
+                    name: year,
+                    value: +row["All 50th"], // Use median value for size
+                    children: [
+                        { name: "All 10th", value: +row["All 10th"] },
+                        { name: "All 25th", value: +row["All 25th"] },
+                        { name: "All 50th", value: +row["All 50th"] },
+                        { name: "All 75th", value: +row["All 75th"] },
+                        { name: "All 90th", value: +row["All 90th"] }
+                    ]
+                });
+
+                // Add to "Tuition and required fees" under "Current dollars"
+                if (!groups["Current dollars"]["Tuition and required fees"][institution]) {
+                    groups["Current dollars"]["Tuition and required fees"][institution] = {
+                        name: institution,
+                        children: []
+                    };
+                    root.children[0].children[1].children.push(groups["Current dollars"]["Tuition and required fees"][institution]);
+                }
+
+                groups["Current dollars"]["Tuition and required fees"][institution].children.push({
+                    name: year,
+                    value: +row["Tuition 50th"], // Use median value for size
+                    children: [
+                        { name: "Tuition 10th", value: +row["Tuition 10th"] },
+                        { name: "Tuition 25th", value: +row["Tuition 25th"] },
+                        { name: "Tuition 50th", value: +row["Tuition 50th"] },
+                        { name: "Tuition 75th", value: +row["Tuition 75th"] },
+                        { name: "Tuition 90th", value: +row["Tuition 90th"] }
+                    ]
+                });
+
+                // Add to "Constant 2022-23 dollars" group
+                if (!groups["Constant 2022-23 dollars"][institution]) {
+                    groups["Constant 2022-23 dollars"][institution] = {
+                        name: institution,
+                        children: []
+                    };
+                    root.children[1].children.push(groups["Constant 2022-23 dollars"][institution]);
+                }
+
+                groups["Constant 2022-23 dollars"][institution].children.push({
+                    name: year,
+                    value: +row["Tuition 23 50th"], // Use median value for size
+                    children: [
+                        { name: "Tuition 23 10th", value: +row["Tuition 23 10th"] },
+                        { name: "Tuition 23 25th", value: +row["Tuition 23 25th"] },
+                        { name: "Tuition 23 50th", value: +row["Tuition 23 50th"] },
+                        { name: "Tuition 23 75th", value: +row["Tuition 23 75th"] },
+                        { name: "Tuition 23 90th", value: +row["Tuition 23 90th"] }
+                    ]
+                });
+            });
+
+            // Compute the layout.
+            const pack = data => d3.pack()
+                .size([width, height])
+                .padding(3)
+              (d3.hierarchy(data)
+                .sum(d => d.value || 0)
+                .sort((a, b) => b.value - a.value));
+            const packed = pack(root);
+
+            // Create the SVG container.
+            const svg = d3.create("svg")
+                .attr("viewBox", `-${width / 2} -${height / 2} ${width} ${height}`)
+                .attr("width", width)
+                .attr("height", height)
+                .attr("style", `max-width: 100%; height: auto; display: block; margin: 0 -14px; background: ${color(0)}; cursor: pointer;`);
+
+            // Append the nodes.
+            const node = svg.append("g")
+              .selectAll("circle")
+              .data(packed.descendants().slice(1))
+              .join("circle")
+                .attr("class", "bubble")
+                .attr("fill", d => d.children ? color(d.depth) : "white")
+                .attr("pointer-events", d => !d.children ? "none" : null)
+                .on("mouseover", function(event, d) {
+                    // Show tooltip only for specified columns
+                    const allowedColumns = [
+                        "Year", "All 10th", "All 25th", "All 50th", "All 75th", "All 90th",
+                        "Tuition 10th", "Tuition 25th", "Tuition 50th", "Tuition 75th", "Tuition 90th",
+                        "Tuition 23 10th", "Tuition 23 25th", "Tuition 23 50th", "Tuition 23 75th", "Tuition 23 90th"
+                    ];
+                    if (allowedColumns.includes(d.data.name)) {
+                        d3.select("#tooltip")
+                            .style("opacity", 1)
+                            .html(`${d.data.name}: ${d.value}`)
+                            .style("left", `${event.pageX + 5}px`)
+                            .style("top", `${event.pageY - 20}px`);
+                    }
+                    d3.select(this).attr("stroke", "#000");
+                })
+                .on("mouseout", function() {
+                    d3.select("#tooltip").style("opacity", 0);
+                    d3.select(this).attr("stroke", null);
+                })
+                .on("click", (event, d) => focus !== d && (zoom(event, d), event.stopPropagation()));
+
+            // Append the text labels.
+            const label = svg.append("g")
+                .style("font", "10px sans-serif")
+                .attr("pointer-events", "none")
+                .attr("text-anchor", "middle")
+              .selectAll("text")
+              .data(packed.descendants())
+              .join("text")
+                .style("fill-opacity", d => d.parent === packed ? 1 : 0)
+                .style("display", d => d.parent === packed ? "inline" : "none")
+                .text(d => d.data.name);
+
+            // Create the zoom behavior and zoom immediately in to the initial focus node.
+            svg.on("click", (event) => zoom(event, packed));
+            let focus = packed;
+            let view;
+            zoomTo([focus.x, focus.y, focus.r * 2]);
+
+            function zoomTo(v) {
+                const k = width / v[2];
+
+                view = v;
+
+                label.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+                node.attr("transform", d => `translate(${(d.x - v[0]) * k},${(d.y - v[1]) * k})`);
+                node.attr("r", d => d.r * k);
+            }
+
+            function zoom(event, d) {
+                const focus0 = focus;
+
+                focus = d;
+
+                const transition = svg.transition()
+                    .duration(event.altKey ? 7500 : 750)
+                    .tween("zoom", d => {
+                      const i = d3.interpolateZoom(view, [focus.x, focus.y, focus.r * 2]);
+                      return t => zoomTo(i(t));
+                    });
+
+                label
+                  .filter(function(d) { return d.parent === focus || this.style.display === "inline"; })
+                  .transition(transition)
+                    .style("fill-opacity", d => d.parent === focus ? 1 : 0)
+                    .on("start", function(d) { if (d.parent === focus) this.style.display = "inline"; })
+                    .on("end", function(d) { if (d.parent !== focus) this.style.display = "none"; });
+            }
+
+            // Append the SVG to the body.
+            document.body.appendChild(svg.node());
+
+        }).catch(function(error) {
+            console.error('Error loading the CSV file:', error);
+        });
+    </script>
+</body>
+</html>

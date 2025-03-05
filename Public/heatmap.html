@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<head>
+  <title>Final Project!</title>
+  <link rel="stylesheet" href="heatmap.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+</head>
+
+<body>
+  <div id="maps">
+    <div id="y21-22-Public">
+      <p>Public Schools 2021 - 2022</p>
+      <div class="map-grid-2"></div>
+    </div>
+    <div id="y22-23-Public">
+      <p>Public Schools 2022 - 2023</p>
+      <div class="map-grid-4"></div>
+    </div>
+    <div id="y21-22-Private">
+      <p>Private Schools 2021 - 2022</p>
+      <div class="map-grid-2"></div>
+    </div>
+    <div id="y22-23-Private">
+      <p>Private Schools 2022 - 2023</p>
+      <div class="map-grid-4"></div>
+    </div>
+  </div>
+  <script src="heatmap.js" type="module"></script>
+</body>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D3 Violin Plot</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        svg {
+            font-family: sans-serif;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls"></div>
+    <div id="violin-chart"></div>
+    
+    <script>
+        d3.csv("clean_data/Instuition.csv").then(function(dataset) {
+            dataset.forEach(d => {
+                d.Year = d["Year"].trim();
+                d.Institution = d["Institution"].trim();
+                d.values = [
+                    +d["All 10th"], +d["All 25th"], +d["All 50th"], +d["All 75th"], +d["All 90th"]
+                ].filter(v => !isNaN(v));
+            });
+
+            const margin = { top: 30, right: 30, bottom: 50, left: 70 },
+                width = 800 - margin.left - margin.right,
+                height = 500 - margin.top - margin.bottom;
+
+            const svg = d3.select("#violin-chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            //dropdowns
+            const institutions = [...new Set(dataset.map(d => d.Institution))];
+            const years = [...new Set(dataset.map(d => d.Year))].sort();
+
+            const dropdownInstitution = d3.select("#controls").append("select").on("change", updateChart);
+            dropdownInstitution.selectAll("option").data(institutions).enter().append("option").text(d => d);
+
+            const xScale = d3.scaleBand().range([0, width]).padding(0.1);
+            const yScale = d3.scaleLinear().range([height, 0]);
+
+            //axis
+            const xAxis = svg.append("g").attr("transform", `translate(0,${height})`);
+            const yAxis = svg.append("g");
+
+            function updateChart() {
+                const selectedInstitution = dropdownInstitution.node().value;
+                const filteredData = dataset.filter(d => d.Institution === selectedInstitution);
+
+                if (filteredData.length === 0) return;
+
+                xScale.domain(filteredData.map(d => d.Year));
+                yScale.domain([0, d3.max(filteredData, d => d3.max(d.values)) || 1]);
+
+                xAxis.call(d3.axisBottom(xScale));
+                yAxis.call(d3.axisLeft(yScale));
+
+                const violin = svg.selectAll(".violin").data(filteredData);
+
+                violin.enter().append("path")
+                    .attr("class", "violin")
+                    .merge(violin)
+                    .transition().duration(1000)
+                    .attr("d", d => {
+                        if (d.values.length === 0) return "";
+                        const kde = kernelDensityEstimator(kernelEpanechnikov(7), yScale.ticks(40))(d.values);
+                        return d3.line()
+                            .x(a => xScale(d.Year) + xScale.bandwidth() / 2 + (Math.random() - 0.5) * 10) // Spread values a bit
+                            .y(a => yScale(a[0]))
+                            .curve(d3.curveBasis)(kde);
+                    })
+                    .attr("fill", "steelblue")
+                    .attr("opacity", 0.7);
+
+                violin.exit().remove();
+            }
+
+            function kernelDensityEstimator(kernel, X) {
+                return function(V) {
+                    return X.map(x => [x, d3.mean(V, v => kernel(x - v))]);
+                };
+            }
+
+            function kernelEpanechnikov(k) {
+                return function(v) {
+                    return Math.abs(v / k) <= 1 ? 0.75 * (1 - (v / k) ** 2) / k : 0;
+                };
+            }
+
+            updateChart();
+        });
+    </script>
+</body>
+</html>
