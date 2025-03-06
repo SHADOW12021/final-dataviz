@@ -8,9 +8,9 @@ app.use(express.json());
 
 // Index.html
 app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/public/index.html");
+  res.sendFile(__dirname + "/Public/index.html");
 });
-app.use(express.static("public"));
+app.use(express.static("Public"));
 
 app.get("/data/state", (req, res) => {
   res.sendFile(__dirname + "/clean_data/State.csv");
