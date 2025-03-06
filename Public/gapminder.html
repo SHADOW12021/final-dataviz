@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>D3 Gapminder Fees Bubble Charts</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    #controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    #chartArea {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #legendArea, #stackedBarArea {
+      margin-top: 0px;
+      width: 90%;
+    }
+    .tooltip {
+      position: absolute;
+      padding: 8px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+    }
+    .chart-title {
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .bar:hover {
+      opacity: 0.8;
+    }
+    .highlight {
+      stroke: #000;
+      stroke-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h2 id="yearDisplay">School Year: </h2>
+    <!-- Controls: Slider and Play/Pause Button directly under the heading -->
+    <div id="controls">
+      <input type="range" id="yearSlider" min="0" step="1">
+      <button id="playPause">Pause</button>
+    </div>
+    <div id="chartArea">
+      <!-- Chart containers for each living condition will be appended here -->
+    </div>
+    <!-- Legend placed below the charts -->
+    <div id="legendArea"></div>
+    <!-- New stacked bar area placed below the legend -->
+    <div id="stackedBarArea"></div>
+  </div>
+  <div class="tooltip" style="opacity:0;"></div>
+  <script src="script.js"></script>
+</body>
+</html>
